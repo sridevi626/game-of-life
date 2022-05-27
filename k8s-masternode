@@ -1,0 +1,81 @@
+Skip to content
+Product 
+Team
+Enterprise
+Explore 
+Marketplace
+Pricing 
+Search
+Sign in
+Sign up
+madhu101298
+/
+madhu101298
+Public
+Code
+Pull requests
+Actions
+Projects
+Security
+Insights
+madhu101298/install_k8s_master.txt
+@madhu101298
+madhu101298 Update install_k8s_master.txt
+Latest commit ccefae7 on Mar 31
+ History
+ 1 contributor
+52 lines (47 sloc)  2.12 KB
+   
+on ubuntu
+install docker
+--------------
+ sudo apt-get update
+ sudo apt-get install ca-certificates curl gnupg lsb-release
+ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+ echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+ sudo apt-get update
+ sudo apt-get install docker-ce docker-ce-cli containerd.io
+ sudo docker run hello-world
+ 
+ install k8s on master
+ ---------------------
+ sudo apt install apt-transport-https curl
+ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" >> ~/kubernetes.list
+sudo mv ~/kubernetes.list /etc/apt/sources.list.d
+sudo apt update
+sudo apt-get install -y kubelet kubeadm kubectl kubernetes-cni
+sudo swapoff -a
+lsmod | grep br_netfilter
+sudo modprobe br_netfilter
+sudo sysctl net.bridge.bridge-nf-call-iptables=1
+sudo mkdir /etc/docker
+cat <<EOF | sudo tee /etc/docker/daemon.json
+{ "exec-opts": ["native.cgroupdriver=systemd"],
+"log-driver": "json-file",
+"log-opts":
+{ "max-size": "100m" },
+"storage-driver": "overlay2"
+}
+EOF
+sudo systemctl enable docker
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+# In the output, you can see the kubeadm join command and a unique token that you will run on the worker node and all other worker nodes that you want to join onto this cluster. Next, copy-paste this command as you will use it later in the worker node.
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sudo ufw allow 6443
+sudo ufw allow 6443/tcp
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
+kubectl get pods --all-namespaces
+kubectl get componentstatus
+
